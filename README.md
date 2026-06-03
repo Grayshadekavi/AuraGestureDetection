@@ -1,5 +1,5 @@
-# AuraGesture - Real-Time Sign Language & Gesture AI
-this a pbl project
+# AuraGesture - Real-Time Sign Language & Gesture AI 
+this a pbl project and it is very good
 A fully working, production-grade, and mathematically robust **Real-Time Gesture & Phrase Detection Web Application** built with **Python Flask, MediaPipe, OpenCV, and JavaScript**. 
 
 Designed specifically for college submissions and academic demonstrations, this project achieves extreme stability, high FPS, and flickering-free classifications without requiring a heavy deep learning training environment. It operates purely on **scale-invariant, relative geometric knuckles mathematics**, meaning it is 100% deterministic, instant, and adapts perfectly to any hand size or camera distance.
