@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraGesture - Real-Time Gesture & Sign AI</title>
+    
+    <!-- Google Fonts: Outfit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <!-- Custom Style CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Background Animated Gradient -->
+    <div class="mesh-bg"></div>
+    <div class="gradient-overlay"></div>
+
+    <div class="container py-4">
+        <!-- Floating Navigation Header -->
+        <header class="glass-card mb-4 px-4 py-3 d-flex flex-wrap justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <div class="logo-orb me-3">
+                    <i class="fa-solid fa-hand-sparkles"></i>
+                </div>
+                <div>
+                    <h1 class="logo-text mb-0">AuraGesture</h1>
+                    <p class="subtitle-text mb-0">Real-Time Sign Language & Gesture AI</p>
+                </div>
+            </div>
+            
+            <div class="d-flex align-items-center gap-3 mt-3 mt-md-0">
+                <!-- Status Badges -->
+                <div class="status-badge" id="cameraStatusBadge">
+                    <span class="pulse-dot bg-danger" id="cameraPulse"></span>
+                    <span class="badge-label" id="cameraStatusText">Camera Offline</span>
+                </div>
+                <div class="status-badge">
+                    <i class="fa-solid fa-gauge-high text-cyan me-1"></i>
+                    <span class="badge-label"><span id="liveFPS">0.0</span> FPS</span>
+                </div>
+                <button class="settings-btn" id="openSettings" data-bs-toggle="modal" data-bs-target="#settingsModal" aria-label="Open Settings">
+                    <i class="fa-solid fa-sliders"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Dashboard Workspace -->
+        <div class="row g-4">
+            <!-- Left Panel: Webcam Stream & Visual Controls -->
+            <div class="col-lg-7 col-xl-8">
+                <div class="glass-card h-100 d-flex flex-column overflow-hidden position-relative">
+                    <div class="card-header-bar px-4 py-3 d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fa-solid fa-video text-magenta"></i>
+                            <span class="panel-title">Webcam Live Stream</span>
+                        </div>
+                        <span class="badge bg-magenta-glow py-1 px-2 rounded-pill font-monospace" id="streamTypeLabel">RAW FEED</span>
+                    </div>
+
+                    <!-- Webcam Box Area -->
+                    <div class="webcam-container flex-grow-1 d-flex align-items-center justify-content-center bg-black-20 m-3 rounded-4 border-dashed relative">
+                        <!-- Camera Placeholder when stopped -->
+                        <div class="camera-placeholder text-center py-5 px-4" id="cameraPlaceholder">
+                            <div class="scan-circle mb-4">
+                                <i class="fa-solid fa-camera-rotate fs-1"></i>
+                            </div>
+                            <h3>Webcam Uninitialized</h3>
+                            <p class="text-secondary max-w-400 mx-auto">Please allow camera access and toggle the activation button below to begin real-time gesture matching.</p>
+                            <button class="btn btn-magenta-glow mt-2 px-4 py-2" id="initCameraBtn">
+                                <i class="fa-solid fa-play me-2"></i>Initialize Camera
+                            </button>
+                        </div>
+                        
+                        <!-- Real-time Video Stream Image -->
+                        <img src="" class="webcam-feed d-none" id="webcamImage" alt="Live Gesture Stream Feed" crossorigin="anonymous">
+                        
+                        <!-- Visual scanning line overlay -->
+                        <div class="scan-line d-none" id="scanningLine"></div>
+                    </div>
+
+                    <!-- Visual Control Actions -->
+                    <div class="px-3 pb-3 pt-1 d-flex flex-wrap gap-2 justify-content-between">
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-action-glass" id="toggleCameraBtn" title="Toggle Webcam On/Off">
+                                <i class="fa-solid fa-video-slash me-2" id="cameraToggleIcon"></i><span id="cameraToggleText">Start Camera</span>
+                            </button>
+                            <button class="btn btn-action-glass" id="screenshotBtn" title="Capture high quality frame" disabled>
+                                <i class="fa-solid fa-camera me-2"></i>Screenshot
+                            </button>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <!-- Voice Engine Switcher -->
+                            <div class="dropdown">
+                                <button class="btn btn-action-glass dropdown-toggle" type="button" id="voiceMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fa-solid fa-volume-high me-2 text-cyan"></i>Voice: <span id="activeVoiceMode">Browser</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-dark dropdown-glass border-0 shadow-lg" aria-labelledby="voiceMenuButton">
+                                    <li><button class="dropdown-item active" id="btnVoiceBrowser"><i class="fa-solid fa-window-maximize me-2 text-cyan"></i>Browser TTS (Speech Synthesis)</button></li>
+                                    <li><button class="dropdown-item" id="btnVoiceBackend"><i class="fa-solid fa-server me-2 text-magenta"></i>Backend TTS (pyttsx3)</button></li>
+                                    <li><hr class="dropdown-divider border-secondary opacity-25"></li>
+                                    <li><button class="dropdown-item" id="btnVoiceMuted"><i class="fa-solid fa-volume-xmark me-2 text-danger"></i>Mute Audio</button></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Analytics, Predictions, Chart & History -->
+            <div class="col-lg-5 col-xl-4">
+                <div class="row g-4">
+                    <!-- Active Gesture Classification Card -->
+                    <div class="col-12">
+                        <div class="glass-card p-4 relative overflow-hidden">
+                            <div class="glow-accent-left"></div>
+                            <span class="small-label-accent">ACTIVE GESTURE</span>
+                            <div class="d-flex align-items-center justify-content-between mt-2">
+                                <h2 class="display-gesture mb-0 text-truncate" id="activeGestureText">No Hand</h2>
+                                <div class="gesture-icon-avatar" id="gestureIconBox">
+                                    <i class="fa-solid fa-hand" id="gestureIcon"></i>
+                                </div>
+                            </div>
+                            
+                            <!-- Confidence Meter -->
+                            <div class="mt-4">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="telemetry-label">Stabilized Confidence</span>
+                                    <span class="telemetry-value" id="confidenceValue">0%</span>
+                                </div>
+                                <div class="progress progress-custom">
+                                    <div class="progress-bar progress-bar-glow bg-cyan" id="confidenceProgressBar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Real-Time Chart Graph -->
+                    <div class="col-12">
+                        <div class="glass-card p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="panel-sub-title"><i class="fa-solid fa-chart-line text-cyan me-2"></i>Confidence Timeline</span>
+                                <span class="badge bg-secondary-glow" id="chartTimeSpan">Last 30 Frames</span>
+                            </div>
+                            <div class="chart-container" style="position: relative; height:150px; width:100%">
+                                <canvas id="confidenceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gesture History Log -->
+                    <div class="col-12">
+                        <div class="glass-card p-4 d-flex flex-column h-350">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="panel-sub-title"><i class="fa-solid fa-clock-rotate-left text-magenta me-2"></i>Gesture History Ledger</span>
+                                <button class="btn-clear-log" id="clearHistoryBtn" title="Clear History List"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                            
+                            <div class="history-list-wrapper flex-grow-1 overflow-y-auto pr-1" id="historyLogList">
+                                <!-- Placeholders if empty -->
+                                <div class="text-center py-4 text-secondary" id="emptyHistoryPlaceholder">
+                                    <i class="fa-solid fa-list-check fs-2 mb-2 opacity-50"></i>
+                                    <p class="small mb-0">Waiting for first gesture stabilization lock...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Captured Screenshot Showcase (Dynamic Modal/Drawer) -->
+        <div class="screenshot-gallery-drawer mt-4 glass-card p-3 d-none" id="screenshotDrawer">
+            <div class="d-flex justify-content-between align-items-center mb-2 px-2">
+                <span class="small-label-accent"><i class="fa-solid fa-images me-2"></i>Captured Screenshots Gallery</span>
+                <button class="btn-clear-log" id="closeGalleryBtn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="d-flex gap-3 overflow-x-auto py-2 px-2" id="galleryContainer"></div>
+        </div>
+
+        <!-- Footer Info -->
+        <footer class="text-center mt-5 text-secondary py-3">
+            <p class="small mb-1">AuraGesture Dashboard &bull; Hand Landmarks processed via MediaPipe and OpenCV.</p>
+            <p class="small font-monospace text-magenta-glow">College submission demo - Fully working local deployment.</p>
+        </footer>
+    </div>
+
+    <!-- Interactive Settings Modal -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content modal-glass border-0">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title logo-text" id="settingsModalLabel"><i class="fa-solid fa-sliders me-2 text-cyan"></i>Dashboard Settings</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Audio Announcement Config -->
+                    <div class="mb-4">
+                        <label class="form-label font-weight-500 d-flex justify-content-between">
+                            <span>Speech Speech Rate (Browser TTS)</span>
+                            <span class="text-cyan font-monospace" id="lblVoiceRate">1.0x</span>
+                        </label>
+                        <input type="range" class="form-range" min="0.5" max="2.0" step="0.1" value="1.0" id="rangeVoiceRate">
+                    </div>
+
+                    <!-- Custom voice selector -->
+                    <div class="mb-4">
+                        <label for="selectVoice" class="form-label font-weight-500">Browser Voice Accent</label>
+                        <select class="form-select select-glass text-white border-0" id="selectVoice">
+                            <option value="default">Default Browser Voice</option>
+                        </select>
+                        <div class="form-text text-secondary mt-1">Select from voices available natively on your operating system.</div>
+                    </div>
+
+                    <!-- Hotkeys info -->
+                    <div class="border-top border-secondary pt-3 mt-3 opacity-75">
+                        <h6 class="text-white mb-2"><i class="fa-solid fa-keyboard me-2 text-magenta"></i>System Shortcuts</h6>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="small text-secondary">Toggle Webcam Feed</span>
+                            <span class="badge bg-secondary-glow font-monospace">Spacebar</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="small text-secondary">Capture Screenshot</span>
+                            <span class="badge bg-secondary-glow font-monospace">S</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="small text-secondary">Mute/Unmute Speech</span>
+                            <span class="badge bg-secondary-glow font-monospace">M</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-secondary-glow px-4" data-bs-dismiss="modal">Apply & Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 Bundle JS with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    
+    <!-- Chart.js for real-time telemetry -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom Application Javascript -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
