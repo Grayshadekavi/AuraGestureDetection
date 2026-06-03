@@ -115,7 +115,7 @@ INFO:__main__:Starting Webcam Acquisition Thread...
 3. Show your hand to the camera to see instant tracking landmarks overlay and stable prediction updates!
 
 ---
-
+sanju project
 ## 🖐️ Signature Gestures Guide
 
 Here are the 10 supported gestures and how they are calculated:
