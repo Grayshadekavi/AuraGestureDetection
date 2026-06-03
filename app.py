@@ -5,7 +5,7 @@ import threading
 import datetime
 import logging
 from flask import Flask, render_template, Response, jsonify, request
-
+#python files
 import mediapipe as mp
 import numpy as np
 
