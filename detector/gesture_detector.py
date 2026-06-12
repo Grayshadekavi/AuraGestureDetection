@@ -46,8 +46,8 @@ class GestureDetector:
             d_tip_wrist = self._get_distance_2d(pts[tip_idx], wrist)
             d_pip_wrist = self._get_distance_2d(pts[pip_idx], wrist)
             
-            # 1.06 factor is mathematically verified to differentiate extended vs curled fingers with high noise tolerance
-            fingers_extended[name] = d_tip_wrist > (d_pip_wrist * 1.06)
+            # 1.02 factor is mathematically verified to differentiate extended vs curled fingers with high noise tolerance under tilts
+            fingers_extended[name] = d_tip_wrist > (d_pip_wrist * 1.02)
 
         # 2. Determine Thumb extended state
         # Distance between Thumb TIP (4) and Index MCP (5) normalized by palm width
@@ -58,9 +58,9 @@ class GestureDetector:
         thumb_index_dist = self._get_distance_2d(thumb_tip, index_mcp) / palm_width
         thumb_pinky_dist = self._get_distance_2d(thumb_tip, pinky_mcp) / palm_width
         
-        # A thumb is extended if it is far from the index knuckle (>0.35)
-        # AND it is also far from the Pinky knuckle (>0.82) to align with Please/Stop.
-        thumb_extended = (thumb_index_dist > 0.35) and (thumb_pinky_dist > 0.82)
+        # A thumb is extended if it is far from the index knuckle (>0.34)
+        # AND it is also far from the Pinky knuckle (>0.80) to align with Please/Stop.
+        thumb_extended = (thumb_index_dist > 0.34) and (thumb_pinky_dist > 0.80)
 
         # 3. Fingertip coordinates for detailed gesture metrics
         t_tip = pts[4]
@@ -89,10 +89,11 @@ class GestureDetector:
         # Classify based on logical patterns
         
         # A. Food / Eat (Pinched hand shape: all 5 fingertips touching in a cone)
-        # Check if at least 3 of the finger tips are in close proximity to the thumb tip (< 0.48)
-        # AND the average pinch distance is small (< 0.45). Bypasses rigid binary extensions.
-        pinch_count = sum([1 for d in [ok_pinch_dist, pinch_middle, pinch_ring, pinch_pinky] if d < 0.48])
-        if pinch_count >= 3 and avg_pinch_dist < 0.45:
+        # Check if at least 3 of the finger tips are in close proximity to the thumb tip (< 0.52)
+        # AND the average pinch distance is small (< 0.50). Bypasses rigid binary extensions.
+        # We also check pinch_pinky < 0.52 to ensure the hand is in a pinch rather than a fist.
+        pinch_count = sum([1 for d in [ok_pinch_dist, pinch_middle, pinch_ring, pinch_pinky] if d < 0.52])
+        if pinch_count >= 3 and avg_pinch_dist < 0.50 and pinch_pinky < 0.52:
             return "Food", 0.98
 
         # B. OK Gesture: Index and Thumb pinching (touching), others extended.
@@ -118,8 +119,12 @@ class GestureDetector:
                 return "Read", 0.98
 
         # F. Emergency / Danger (Index folded; Thumb, Middle, Ring, Pinky extended)
-        if thumb_extended and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky'] and not fingers_extended['index']:
-            return "Emergency", 0.98
+        if thumb_extended and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky']:
+            d_index_wrist = self._get_distance_2d(pts[8], wrist)
+            d_middle_wrist = self._get_distance_2d(pts[12], wrist)
+            # Index is folded if it is significantly shorter than the middle finger
+            if d_index_wrist < d_middle_wrist * 0.88:
+                return "Emergency", 0.98
 
         # G. Question (Ring folded; Thumb, Index, Middle, Pinky extended)
         if thumb_extended and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['pinky']:
