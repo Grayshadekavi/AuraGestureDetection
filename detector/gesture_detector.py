@@ -199,7 +199,7 @@ class GestureDetector:
             return "Where are you going?", 0.98
 
         # Q. Water (W-shape: Index, Middle, and Ring extended; Thumb and Pinky folded)
-        if fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and not fingers_extended['pinky'] and not thumb_extended:
+        if fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and not thumb_extended:
             return "Water", 0.98
 
         # R. Toilet / Washroom (Pinky extended only; Thumb, Index, Middle, Ring folded)
