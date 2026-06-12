@@ -34,40 +34,38 @@ class GestureDetector:
         
         # Palm scale factor (knuckle width between Index MCP landmark 5 and Pinky MCP landmark 17)
         palm_width = self._get_distance_2d(pts[5], pts[17])
-        if palm_width < 1e-4:
-            palm_width = 1e-4
+        # Palm height (distance between wrist 0 and Middle MCP 9)
+        palm_height = self._get_distance_2d(pts[0], pts[9])
+        # Use a robust scale factor that doesn't collapse under hand rotation/tilt
+        scale = max(palm_width, palm_height * 0.55)
+        if scale < 1e-4:
+            scale = 1e-4
 
         # 1. Determine states of 4 fingers (Index, Middle, Ring, Pinky)
-        # Using the Knuckle-to-Tip Distance Rule:
-        # A finger is extended if its TIP is far from its MCP (knuckle) joint.
-        # This completely bypasses the noisy and easily-occluded PIP joints.
+        # Using the Wrist-Distance Heuristic:
+        # A finger is extended if its TIP is further from the wrist than its PIP joint.
+        # This is extremely scale- and rotation-invariant, bypassing palm-width distortion.
         fingers_extended = {}
-        knuckle_tips = {
-            'index': (5, 8),
-            'middle': (9, 12),
-            'ring': (13, 16),
-            'pinky': (17, 20)
+        finger_joints = {
+            'index': (8, 6),
+            'middle': (12, 10),
+            'ring': (16, 14),
+            'pinky': (20, 18)
         }
-        # Customized anatomical thresholds for each finger
-        thresholds = {
-            'index': 0.74,
-            'middle': 0.74,
-            'ring': 0.74,
-            'pinky': 0.70
-        }
-        for name, joints in knuckle_tips.items():
-            mcp_idx, tip_idx = joints
-            d_tip_mcp = self._get_distance_2d(pts[tip_idx], pts[mcp_idx]) / palm_width
-            fingers_extended[name] = d_tip_mcp > thresholds[name]
+        factor = 1.02  # Optimal threshold factor
+        for name, (tip_idx, pip_idx) in finger_joints.items():
+            d_tip_wrist = self._get_distance_2d(pts[tip_idx], wrist)
+            d_pip_wrist = self._get_distance_2d(pts[pip_idx], wrist)
+            fingers_extended[name] = d_tip_wrist > d_pip_wrist * factor
 
         # 2. Determine Thumb extended state
-        # Distance between Thumb TIP (4) and Index MCP (5) normalized by palm width
+        # Distance between Thumb TIP (4) and Index MCP (5) normalized by scale
         thumb_tip = pts[4]
         index_mcp = pts[5]
         pinky_mcp = pts[17]
         
-        thumb_index_dist = self._get_distance_2d(thumb_tip, index_mcp) / palm_width
-        thumb_pinky_dist = self._get_distance_2d(thumb_tip, pinky_mcp) / palm_width
+        thumb_index_dist = self._get_distance_2d(thumb_tip, index_mcp) / scale
+        thumb_pinky_dist = self._get_distance_2d(thumb_tip, pinky_mcp) / scale
         
         # A thumb is extended if it is far from the index knuckle (>0.35)
         thumb_extended = thumb_index_dist > 0.35
@@ -83,15 +81,15 @@ class GestureDetector:
         # Used to distinguish "Hello" (spread) from "Stop" (closed)
         spread_dist = (self._get_distance_2d(i_tip, m_tip) + 
                        self._get_distance_2d(m_tip, r_tip) + 
-                       self._get_distance_2d(r_tip, p_tip)) / palm_width
+                       self._get_distance_2d(r_tip, p_tip)) / scale
 
         # Check proximity of Index Tip and Thumb Tip for the "OK" gesture
-        ok_pinch_dist = self._get_distance_2d(t_tip, i_tip) / palm_width
+        ok_pinch_dist = self._get_distance_2d(t_tip, i_tip) / scale
 
         # Calculate coordinates for pinched Food gesture
-        pinch_middle = self._get_distance_2d(t_tip, m_tip) / palm_width
-        pinch_ring = self._get_distance_2d(t_tip, r_tip) / palm_width
-        pinch_pinky = self._get_distance_2d(t_tip, p_tip) / palm_width
+        pinch_middle = self._get_distance_2d(t_tip, m_tip) / scale
+        pinch_ring = self._get_distance_2d(t_tip, r_tip) / scale
+        pinch_pinky = self._get_distance_2d(t_tip, p_tip) / scale
 
         # Calculate average pinch distance to handle MediaPipe landmark occlusion noise
         avg_pinch_dist = (ok_pinch_dist + pinch_middle + pinch_ring + pinch_pinky) / 4.0
@@ -108,15 +106,15 @@ class GestureDetector:
 
         # B. OK Gesture: Index and Thumb pinching (touching), others extended.
         # We require a real pinch distance check to prevent falsely intercepting "Emergency"
-        if ok_pinch_dist < 0.55 and not fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky']:
+        if ok_pinch_dist < 0.35 and not fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky']:
             return "OK", 0.98
 
         # C. Money / Cost (Thumb and Middle finger pinched, Index, Ring, Pinky extended)
-        if pinch_middle < 0.40 and fingers_extended['index'] and not fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky']:
+        if pinch_middle < 0.35 and fingers_extended['index'] and not fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky']:
             return "Money", 0.98
 
         # D. Attention (Thumb and Pinky pinched, Index, Middle, Ring extended)
-        if pinch_pinky < 0.30 and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and not fingers_extended['pinky']:
+        if pinch_pinky < 0.25 and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and not fingers_extended['pinky']:
             return "Attention", 0.98
 
         # E. Read / Book (ASL 'Book' shape: Index, Middle, and Pinky extended; Ring and Thumb folded)
@@ -158,7 +156,7 @@ class GestureDetector:
                 # It is Hello or Stop, separated by finger spread:
                 # We use the highly stable Tip-Width to Knuckle-Width Ratio
                 tip_width = self._get_distance_2d(pts[8], pts[20])
-                if tip_width / palm_width > 1.30:
+                if tip_width / scale > 1.30:
                     return "Hello", 0.95
                 else:
                     return "Stop", 0.95
@@ -201,7 +199,7 @@ class GestureDetector:
             return "Where are you going?", 0.98
 
         # Q. Water (W-shape: Index, Middle, and Ring extended; Thumb and Pinky folded)
-        if fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and not thumb_extended:
+        if fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and not fingers_extended['pinky'] and not thumb_extended:
             return "Water", 0.98
 
         # R. Toilet / Washroom (Pinky extended only; Thumb, Index, Middle, Ring folded)
