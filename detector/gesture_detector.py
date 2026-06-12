@@ -67,8 +67,9 @@ class GestureDetector:
         thumb_index_dist = self._get_distance_2d(thumb_tip, index_mcp) / scale
         thumb_pinky_dist = self._get_distance_2d(thumb_tip, pinky_mcp) / scale
         
-        # A thumb is extended if it is far from the index knuckle (>0.35)
-        thumb_extended = thumb_index_dist > 0.35
+        # A thumb is extended if it is far from both the index knuckle and the pinky knuckle
+        # (if it is curled across the palm towards the pinky, it is considered folded).
+        thumb_extended = thumb_index_dist > 0.35 and thumb_pinky_dist > 0.82
 
         # 3. Fingertip coordinates for detailed gesture metrics
         t_tip = pts[4]
