@@ -380,12 +380,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Update History List Panel ---
     function updateHistoryList(historyData) {
+        // Toggle the empty placeholder visibility
         if (!historyData || historyData.length === 0) {
             elements.emptyHistoryPlaceholder.classList.remove('d-none');
-            if (elements.historyItemsContainer) {
-                elements.historyItemsContainer.innerHTML = '';
-                elements.historyItemsContainer.dataset.hash = '';
-            }
+            // Safely remove all old history items
+            const items = elements.historyLogList.querySelectorAll('.history-item');
+            items.forEach(el => el.remove());
+            elements.historyLogList.dataset.hash = '';
             return;
         }
 
@@ -415,11 +416,14 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         const newHashVal = hash(newHtml).toString();
-        if (elements.historyItemsContainer) {
-            if (elements.historyItemsContainer.dataset.hash !== newHashVal) {
-                elements.historyItemsContainer.innerHTML = newHtml;
-                elements.historyItemsContainer.dataset.hash = newHashVal;
-            }
+        if (elements.historyLogList.dataset.hash !== newHashVal) {
+            // Remove old history items
+            const items = elements.historyLogList.querySelectorAll('.history-item');
+            items.forEach(el => el.remove());
+            
+            // Append new items at the end of the list wrapper
+            elements.historyLogList.insertAdjacentHTML('beforeend', newHtml);
+            elements.historyLogList.dataset.hash = newHashVal;
         }
     }
 
