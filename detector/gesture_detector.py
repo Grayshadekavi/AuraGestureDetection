@@ -50,10 +50,10 @@ class GestureDetector:
         }
         # Customized anatomical thresholds for each finger
         thresholds = {
-            'index': 0.65,
-            'middle': 0.65,
-            'ring': 0.65,
-            'pinky': 0.60
+            'index': 0.74,
+            'middle': 0.74,
+            'ring': 0.74,
+            'pinky': 0.70
         }
         for name, joints in knuckle_tips.items():
             mcp_idx, tip_idx = joints
@@ -69,8 +69,8 @@ class GestureDetector:
         thumb_index_dist = self._get_distance_2d(thumb_tip, index_mcp) / palm_width
         thumb_pinky_dist = self._get_distance_2d(thumb_tip, pinky_mcp) / palm_width
         
-        # A thumb is extended if it is far from the index knuckle (>0.30)
-        thumb_extended = thumb_index_dist > 0.30
+        # A thumb is extended if it is far from the index knuckle (>0.35)
+        thumb_extended = thumb_index_dist > 0.35
 
         # 3. Fingertip coordinates for detailed gesture metrics
         t_tip = pts[4]
@@ -116,7 +116,7 @@ class GestureDetector:
             return "Money", 0.98
 
         # D. Attention (Thumb and Pinky pinched, Index, Middle, Ring extended)
-        if pinch_pinky < 0.45 and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and not fingers_extended['pinky']:
+        if pinch_pinky < 0.30 and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and not fingers_extended['pinky']:
             return "Attention", 0.98
 
         # E. Read / Book (ASL 'Book' shape: Index, Middle, and Pinky extended; Ring and Thumb folded)
