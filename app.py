@@ -44,12 +44,7 @@ class WebcamManager:
         
         # Core engines
         self.detector = GestureDetector()
-        self.stabilizer = GestureStabilizer(
-            window_size=5,
-            min_confidence=0.50,
-            lock_consecutive_frames=2,
-            cooldown_seconds=0.3
-        )
+        self.stabilizer = GestureStabilizer()
         self.voice_engine = BackgroundVoiceEngine()
         
         # MediaPipe initialization
