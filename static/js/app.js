@@ -386,8 +386,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Safely remove all old history items
             const items = elements.historyLogList.querySelectorAll('.history-item');
             items.forEach(el => el.remove());
-            elements.historyLogList.dataset.hash = '';
+            elements.historyLogList.dataset.historyStr = '';
             return;
+        }
+
+        const dataStr = JSON.stringify(historyData);
+        if (elements.historyLogList.dataset.historyStr === dataStr) {
+            return; // No changes, exit early
         }
 
         elements.emptyHistoryPlaceholder.classList.add('d-none');
@@ -407,24 +412,13 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }).join('');
         
-        const hash = (str) => {
-            let h = 0;
-            for (let i = 0; i < str.length; i++) {
-                h = 31 * h + str.charCodeAt(i);
-            }
-            return h;
-        };
+        // Remove old history items
+        const items = elements.historyLogList.querySelectorAll('.history-item');
+        items.forEach(el => el.remove());
         
-        const newHashVal = hash(newHtml).toString();
-        if (elements.historyLogList.dataset.hash !== newHashVal) {
-            // Remove old history items
-            const items = elements.historyLogList.querySelectorAll('.history-item');
-            items.forEach(el => el.remove());
-            
-            // Append new items at the end of the list wrapper
-            elements.historyLogList.insertAdjacentHTML('beforeend', newHtml);
-            elements.historyLogList.dataset.hash = newHashVal;
-        }
+        // Append new items at the end of the list wrapper
+        elements.historyLogList.insertAdjacentHTML('beforeend', newHtml);
+        elements.historyLogList.dataset.historyStr = dataStr;
     }
 
     // --- Capture Visual Screenshot ---
