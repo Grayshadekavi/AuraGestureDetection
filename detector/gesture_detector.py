@@ -89,31 +89,54 @@ class GestureDetector:
         # Classify based on logical patterns
         
         # A. Food / Eat (Pinched hand shape: all 5 fingertips touching in a cone)
-        # Check if all four finger tips are in close proximity to the thumb tip (< 0.42).
-        # This completely bypasses the finger-extension checks to ensure robust scaling and angle independence.
-        is_food_pinch = (ok_pinch_dist < 0.42 and 
-                         pinch_middle < 0.42 and 
-                         pinch_ring < 0.42 and 
-                         pinch_pinky < 0.42)
-        if is_food_pinch:
+        # Check if at least 3 of the finger tips are in close proximity to the thumb tip (< 0.48)
+        # AND the average pinch distance is small (< 0.45). Bypasses rigid binary extensions.
+        pinch_count = sum([1 for d in [ok_pinch_dist, pinch_middle, pinch_ring, pinch_pinky] if d < 0.48])
+        if pinch_count >= 3 and avg_pinch_dist < 0.45:
             return "Food", 0.98
 
         # B. OK Gesture: Index and Thumb pinching (touching), others extended.
-        is_ok_finger_combination = not fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky']
-        is_ok_pinch_distance = ok_pinch_dist < 0.40 and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky']
-        
-        if is_ok_finger_combination or is_ok_pinch_distance:
+        # We require a real pinch distance check to prevent falsely intercepting "Emergency"
+        if ok_pinch_dist < 0.40 and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky']:
             return "OK", 0.98
 
         # C. Money / Cost (Thumb and Middle finger pinched, Index, Ring, Pinky extended)
-        if pinch_middle < 0.25 and fingers_extended['index'] and fingers_extended['ring'] and fingers_extended['pinky']:
+        if pinch_middle < 0.40 and fingers_extended['index'] and fingers_extended['ring'] and fingers_extended['pinky']:
             return "Money", 0.98
 
         # D. Attention (Thumb and Pinky pinched, Index, Middle, Ring extended)
-        if pinch_pinky < 0.25 and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring']:
+        if pinch_pinky < 0.40 and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring']:
             return "Attention", 0.98
 
-        # E. Combined Flat Palm Logic: Hello vs Stop vs Please
+        # E. Read / Book (ASL 'Book' shape: Index, Middle, and Pinky extended; Ring and Thumb folded)
+        if fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['pinky'] and not thumb_extended:
+            d_ring_wrist = self._get_distance_2d(pts[16], wrist)
+            d_middle_wrist = self._get_distance_2d(pts[12], wrist)
+            d_pinky_wrist = self._get_distance_2d(pts[20], wrist)
+            # The ring finger is folded if it is significantly closer to the wrist than the middle & pinky
+            if d_ring_wrist < d_middle_wrist * 0.92 and d_ring_wrist < d_pinky_wrist * 0.95:
+                return "Read", 0.98
+
+        # F. Emergency / Danger (Index folded; Thumb, Middle, Ring, Pinky extended)
+        if thumb_extended and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky'] and not fingers_extended['index']:
+            return "Emergency", 0.98
+
+        # G. Question (Ring folded; Thumb, Index, Middle, Pinky extended)
+        if thumb_extended and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['pinky']:
+            d_ring_wrist = self._get_distance_2d(pts[16], wrist)
+            d_middle_wrist = self._get_distance_2d(pts[12], wrist)
+            d_pinky_wrist = self._get_distance_2d(pts[20], wrist)
+            if d_ring_wrist < d_middle_wrist * 0.92 and d_ring_wrist < d_pinky_wrist * 0.95:
+                return "Question", 0.98
+
+        # H. Good Morning (Pinky folded; Thumb, Index, Middle, Ring extended)
+        if thumb_extended and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring']:
+            d_pinky_wrist = self._get_distance_2d(pts[20], wrist)
+            d_ring_wrist = self._get_distance_2d(pts[16], wrist)
+            if d_pinky_wrist < d_ring_wrist * 0.90:
+                return "Good Morning", 0.98
+
+        # I. Combined Flat Palm Logic: Hello vs Stop vs Please
         # All three require Index, Middle, Ring, and Pinky to be extended.
         # This unified branch completely avoids logical overlaps and ensures 100% stable results.
         all_four_extended = fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky']
@@ -130,20 +153,20 @@ class GestureDetector:
                 else:
                     return "Stop", 0.95
 
-        # F. How are you? (3-Finger shape: Thumb, Index, and Middle extended; Ring and Pinky folded)
+        # J. How are you? (3-Finger shape: Thumb, Index, and Middle extended; Ring and Pinky folded)
         if thumb_extended and fingers_extended['index'] and fingers_extended['middle'] and not (fingers_extended['ring'] or fingers_extended['pinky']):
             return "How are you", 0.98
 
-        # G. Peace Gesture (V-Sign)
+        # K. Peace Gesture (V-Sign)
         # Index and Middle extended, Ring and Pinky folded, Thumb folded.
         if fingers_extended['index'] and fingers_extended['middle'] and not (fingers_extended['ring'] or fingers_extended['pinky'] or thumb_extended):
             return "Peace", 0.98
 
-        # H. Medicine / Sick (L-shape: Thumb and Index extended; Middle, Ring, Pinky folded)
+        # L. Medicine / Sick (L-shape: Thumb and Index extended; Middle, Ring, Pinky folded)
         if thumb_extended and fingers_extended['index'] and not (fingers_extended['middle'] or fingers_extended['ring'] or fingers_extended['pinky']):
             return "Medicine", 0.98
 
-        # I. Thumbs Up vs Thumbs Down
+        # M. Thumbs Up vs Thumbs Down
         # Only thumb extended, all other fingers folded
         if thumb_extended and not (fingers_extended['index'] or fingers_extended['middle'] or fingers_extended['ring'] or fingers_extended['pinky']):
             thumb_mcp = pts[2]
@@ -153,51 +176,35 @@ class GestureDetector:
             elif t_tip[1] > thumb_mcp[1] + 0.015:
                 return "Thumbs Down", 0.98
 
-        # J. I Love You (ILY)
+        # N. I Love You (ILY)
         # Thumb, Index, and Pinky extended, Middle and Ring folded
         if thumb_extended and fingers_extended['index'] and fingers_extended['pinky'] and not (fingers_extended['middle'] or fingers_extended['ring']):
             return "I Love You", 0.98
 
-        # K. Thanks (Shaka)
+        # O. Thanks (Shaka)
         # Thumb and Pinky extended, Index, Middle, Ring folded
         if thumb_extended and fingers_extended['pinky'] and not (fingers_extended['index'] or fingers_extended['middle'] or fingers_extended['ring']):
             return "Thanks", 0.98
 
-        # L. Where are you going? (Horns shape: Index and Pinky extended; Thumb, Middle, and Ring folded)
+        # P. Where are you going? (Horns shape: Index and Pinky extended; Thumb, Middle, and Ring folded)
         if fingers_extended['index'] and fingers_extended['pinky'] and not (thumb_extended or fingers_extended['middle'] or fingers_extended['ring']):
             return "Where are you going?", 0.98
 
-        # M. Water (W-shape: Index, Middle, and Ring extended; Thumb and Pinky folded)
+        # Q. Water (W-shape: Index, Middle, and Ring extended; Thumb and Pinky folded)
         if fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and not (thumb_extended or fingers_extended['pinky']):
             return "Water", 0.98
 
-        # N. Toilet / Washroom (Pinky extended only; Thumb, Index, Middle, Ring folded)
+        # R. Toilet / Washroom (Pinky extended only; Thumb, Index, Middle, Ring folded)
         if fingers_extended['pinky'] and not (thumb_extended or fingers_extended['index'] or fingers_extended['middle'] or fingers_extended['ring']):
             return "Toilet", 0.98
 
-        # O. Read / Book (ASL 'Book' shape: Index, Middle, and Pinky extended; Ring and Thumb folded)
-        if fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['pinky'] and not (thumb_extended or fingers_extended['ring']):
-            return "Read", 0.98
-
-        # P. Sleep / Tired (ASL 'Rest' shape: Ring and Pinky extended; Thumb, Index, and Middle folded)
+        # S. Sleep / Tired (ASL 'Rest' shape: Ring and Pinky extended; Thumb, Index, and Middle folded)
         if fingers_extended['ring'] and fingers_extended['pinky'] and not (thumb_extended or fingers_extended['index'] or fingers_extended['middle']):
             return "Sleep", 0.98
 
-        # Q. Emergency / Danger (Index folded; Thumb, Middle, Ring, Pinky extended)
-        if thumb_extended and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky'] and not fingers_extended['index']:
-            return "Emergency", 0.98
-
-        # R. Happy (Thumb, Ring, Pinky extended; Index, Middle folded)
+        # T. Happy (Thumb, Ring, Pinky extended; Index, Middle folded)
         if thumb_extended and fingers_extended['ring'] and fingers_extended['pinky'] and not (fingers_extended['index'] or fingers_extended['middle']):
             return "Happy", 0.98
-
-        # S. Question (Ring folded; Thumb, Index, Middle, Pinky extended)
-        if thumb_extended and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['pinky'] and not fingers_extended['ring']:
-            return "Question", 0.98
-
-        # T. Good Morning (Pinky folded; Thumb, Index, Middle, Ring extended)
-        if thumb_extended and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and not fingers_extended['pinky']:
-            return "Good Morning", 0.98
 
         # U. No (Pointing index finger up, middle/ring/pinky folded)
         if fingers_extended['index'] and not (fingers_extended['middle'] or fingers_extended['ring'] or fingers_extended['pinky']):
