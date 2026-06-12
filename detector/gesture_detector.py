@@ -164,12 +164,12 @@ class GestureDetector:
                     return "Stop", 0.95
 
         # J. How are you? (3-Finger shape: Thumb, Index, and Middle extended; Ring and Pinky folded)
-        if thumb_extended and fingers_extended['index'] and fingers_extended['middle'] and not (fingers_extended['ring'] or fingers_extended['pinky']):
+        if thumb_extended and thumb_pinky_dist >= 0.75 and fingers_extended['index'] and fingers_extended['middle'] and not (fingers_extended['ring'] or fingers_extended['pinky']):
             return "How are you", 0.98
 
         # K. Peace Gesture (V-Sign)
         # Index and Middle extended, Ring and Pinky folded, Thumb folded.
-        if fingers_extended['index'] and fingers_extended['middle'] and not (fingers_extended['ring'] or fingers_extended['pinky'] or thumb_extended):
+        if fingers_extended['index'] and fingers_extended['middle'] and not (fingers_extended['ring'] or fingers_extended['pinky']) and (not thumb_extended or thumb_pinky_dist < 0.75):
             return "Peace", 0.98
 
         # L. Medicine / Sick (L-shape: Thumb and Index extended; Middle, Ring, Pinky folded)
