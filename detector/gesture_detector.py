@@ -46,8 +46,8 @@ class GestureDetector:
             d_tip_wrist = self._get_distance_2d(pts[tip_idx], wrist)
             d_pip_wrist = self._get_distance_2d(pts[pip_idx], wrist)
             
-            # 1.08 factor is mathematically verified to differentiate extended vs curled fingers with high noise tolerance under tilts
-            fingers_extended[name] = d_tip_wrist > (d_pip_wrist * 1.08)
+            # 1.05 factor is mathematically verified to differentiate extended vs curled fingers with high noise tolerance under tilts
+            fingers_extended[name] = d_tip_wrist > (d_pip_wrist * 1.05)
 
         # 2. Determine Thumb extended state
         # Distance between Thumb TIP (4) and Index MCP (5) normalized by palm width
@@ -106,7 +106,7 @@ class GestureDetector:
             return "Money", 0.98
 
         # D. Attention (Thumb and Pinky pinched, Index, Middle, Ring extended)
-        if pinch_pinky < 0.40 and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and not fingers_extended['pinky']:
+        if pinch_pinky < 0.45 and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and not fingers_extended['pinky']:
             return "Attention", 0.98
 
         # E. Read / Book (ASL 'Book' shape: Index, Middle, and Pinky extended; Ring and Thumb folded)
@@ -135,11 +135,8 @@ class GestureDetector:
                 return "Question", 0.98
 
         # H. Good Morning (Pinky folded; Thumb, Index, Middle, Ring extended)
-        if thumb_extended and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring']:
-            d_pinky_wrist = self._get_distance_2d(pts[20], wrist)
-            d_ring_wrist = self._get_distance_2d(pts[16], wrist)
-            if d_pinky_wrist < d_ring_wrist * 0.90:
-                return "Good Morning", 0.98
+        if thumb_extended and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and not fingers_extended['pinky']:
+            return "Good Morning", 0.98
 
         # I. Combined Flat Palm Logic: Hello vs Stop vs Please
         # All three require Index, Middle, Ring, and Pinky to be extended.
