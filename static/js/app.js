@@ -381,14 +381,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateHistoryList(historyData) {
         if (!historyData || historyData.length === 0) {
             elements.emptyHistoryPlaceholder.classList.remove('d-none');
-            elements.historyLogList.querySelectorAll('.history-item').forEach(el => el.remove());
+            // Remove any old items from the list
+            Array.from(elements.historyLogList.children).forEach(el => {
+                if (el !== elements.emptyHistoryPlaceholder) el.remove();
+            });
             return;
         }
 
         elements.emptyHistoryPlaceholder.classList.add('d-none');
-        
-        // Build map of existing items in UI to prevent complete redraw flickering
-        const existingItems = Array.from(elements.historyLogList.querySelectorAll('.history-item'));
         
         // Render up to 10 latest items smoothly
         const renderData = historyData.slice(0, 10);
@@ -398,17 +398,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
                 <div class="history-item">
                     <div>
-                        <i class="fa-solid fa-clock-o me-2 text-cyan"></i>
+                        <i class="fa-solid fa-clock me-2 text-cyan"></i>
                         <span class="history-name">${item.gesture}</span>
                     </div>
                     <span class="history-time">${item.timestamp}</span>
                 </div>
             `;
         }).join('');
-        
-        // Check if content changed
-        const currentHtml = elements.historyLogList.innerHTML.trim();
-        const placeholderFreeHtml = currentHtml.replace('<div class="text-center py-4 text-secondary" id="emptyHistoryPlaceholder">.*</div>', '');
         
         // We do a simple innerHTML replacement only when state is strictly different
         const hash = (str) => {
@@ -419,9 +415,18 @@ document.addEventListener('DOMContentLoaded', () => {
             return h;
         };
         
-        if (elements.historyLogList.childElementCount - 1 !== renderData.length || hash(newHtml) !== hash(elements.historyLogList.dataset.hash || "")) {
-            elements.historyLogList.innerHTML = newHtml;
-            elements.historyLogList.dataset.hash = newHtml;
+        const newHashVal = hash(newHtml).toString();
+        if (elements.historyLogList.dataset.hash !== newHashVal) {
+            // Overwrite list content but preserve hidden placeholder inside
+            elements.historyLogList.innerHTML = `
+                <div class="text-center py-4 text-secondary d-none" id="emptyHistoryPlaceholder">
+                    <i class="fa-solid fa-list-check fs-2 mb-2 opacity-50"></i>
+                    <p class="small mb-0">Waiting for first gesture stabilization lock...</p>
+                </div>
+            ` + newHtml;
+            elements.historyLogList.dataset.hash = newHashVal;
+            // Restore placeholder reference as the previous one was deleted by innerHTML overwrite
+            elements.emptyHistoryPlaceholder = document.getElementById('emptyHistoryPlaceholder');
         }
     }
 

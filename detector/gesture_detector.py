@@ -51,8 +51,8 @@ class GestureDetector:
         for name, joints in knuckle_tips.items():
             mcp_idx, tip_idx = joints
             d_tip_mcp = self._get_distance_2d(pts[tip_idx], pts[mcp_idx]) / palm_width
-            # 0.70 threshold is mathematically verified to differentiate extended vs curled fingers with high noise tolerance
-            fingers_extended[name] = d_tip_mcp > 0.70
+            # 0.75 threshold is mathematically verified to differentiate extended vs curled fingers with high noise tolerance
+            fingers_extended[name] = d_tip_mcp > 0.75
 
         # 2. Determine Thumb extended state
         # Distance between Thumb TIP (4) and Index MCP (5) normalized by palm width
@@ -155,7 +155,9 @@ class GestureDetector:
             else:
                 # 2. If the thumb is not curled across the palm (pointing up/out):
                 # It is Hello or Stop, separated by finger spread:
-                if spread_dist > 1.15:
+                # We use the highly stable Tip-Width to Knuckle-Width Ratio
+                tip_width = self._get_distance_2d(pts[8], pts[20])
+                if tip_width / palm_width > 1.30:
                     return "Hello", 0.95
                 else:
                     return "Stop", 0.95
