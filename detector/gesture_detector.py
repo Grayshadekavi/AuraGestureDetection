@@ -48,11 +48,17 @@ class GestureDetector:
             'ring': (13, 16),
             'pinky': (17, 20)
         }
+        # Customized anatomical thresholds for each finger
+        thresholds = {
+            'index': 0.65,
+            'middle': 0.65,
+            'ring': 0.65,
+            'pinky': 0.60
+        }
         for name, joints in knuckle_tips.items():
             mcp_idx, tip_idx = joints
             d_tip_mcp = self._get_distance_2d(pts[tip_idx], pts[mcp_idx]) / palm_width
-            # 0.75 threshold is mathematically verified to differentiate extended vs curled fingers with high noise tolerance
-            fingers_extended[name] = d_tip_mcp > 0.75
+            fingers_extended[name] = d_tip_mcp > thresholds[name]
 
         # 2. Determine Thumb extended state
         # Distance between Thumb TIP (4) and Index MCP (5) normalized by palm width
@@ -115,7 +121,7 @@ class GestureDetector:
             return "Attention", 0.98
 
         # E. Read / Book (ASL 'Book' shape: Index, Middle, and Pinky extended; Ring and Thumb folded)
-        if fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['pinky'] and not thumb_extended:
+        if fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['pinky'] and not thumb_extended and not fingers_extended['ring']:
             d_ring_wrist = self._get_distance_2d(pts[16], wrist)
             d_middle_wrist = self._get_distance_2d(pts[12], wrist)
             d_pinky_wrist = self._get_distance_2d(pts[20], wrist)
@@ -124,7 +130,7 @@ class GestureDetector:
                 return "Read", 0.98
 
         # F. Emergency / Danger (Index folded; Thumb, Middle, Ring, Pinky extended)
-        if thumb_extended and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky']:
+        if thumb_extended and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky'] and not fingers_extended['index']:
             d_index_wrist = self._get_distance_2d(pts[8], wrist)
             d_middle_wrist = self._get_distance_2d(pts[12], wrist)
             # Index is folded if it is significantly shorter than the middle finger
@@ -132,7 +138,7 @@ class GestureDetector:
                 return "Emergency", 0.98
 
         # G. Question (Ring folded; Thumb, Index, Middle, Pinky extended)
-        if thumb_extended and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['pinky']:
+        if thumb_extended and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['pinky'] and not fingers_extended['ring']:
             d_ring_wrist = self._get_distance_2d(pts[16], wrist)
             d_middle_wrist = self._get_distance_2d(pts[12], wrist)
             d_pinky_wrist = self._get_distance_2d(pts[20], wrist)

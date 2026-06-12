@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // History & Screenshot Gallery
         historyLogList: document.getElementById('historyLogList'),
         emptyHistoryPlaceholder: document.getElementById('emptyHistoryPlaceholder'),
+        historyItemsContainer: document.getElementById('historyItemsContainer'),
         clearHistoryBtn: document.getElementById('clearHistoryBtn'),
         screenshotDrawer: document.getElementById('screenshotDrawer'),
         galleryContainer: document.getElementById('galleryContainer'),
@@ -381,10 +382,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateHistoryList(historyData) {
         if (!historyData || historyData.length === 0) {
             elements.emptyHistoryPlaceholder.classList.remove('d-none');
-            // Remove any old items from the list
-            Array.from(elements.historyLogList.children).forEach(el => {
-                if (el !== elements.emptyHistoryPlaceholder) el.remove();
-            });
+            if (elements.historyItemsContainer) {
+                elements.historyItemsContainer.innerHTML = '';
+                elements.historyItemsContainer.dataset.hash = '';
+            }
             return;
         }
 
@@ -393,7 +394,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Render up to 10 latest items smoothly
         const renderData = historyData.slice(0, 10);
         
-        // Simple DOM diffing to keep scroll behavior intact and prevent blink
         const newHtml = renderData.map(item => {
             return `
                 <div class="history-item">
@@ -406,7 +406,6 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }).join('');
         
-        // We do a simple innerHTML replacement only when state is strictly different
         const hash = (str) => {
             let h = 0;
             for (let i = 0; i < str.length; i++) {
@@ -416,17 +415,11 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         const newHashVal = hash(newHtml).toString();
-        if (elements.historyLogList.dataset.hash !== newHashVal) {
-            // Overwrite list content but preserve hidden placeholder inside
-            elements.historyLogList.innerHTML = `
-                <div class="text-center py-4 text-secondary d-none" id="emptyHistoryPlaceholder">
-                    <i class="fa-solid fa-list-check fs-2 mb-2 opacity-50"></i>
-                    <p class="small mb-0">Waiting for first gesture stabilization lock...</p>
-                </div>
-            ` + newHtml;
-            elements.historyLogList.dataset.hash = newHashVal;
-            // Restore placeholder reference as the previous one was deleted by innerHTML overwrite
-            elements.emptyHistoryPlaceholder = document.getElementById('emptyHistoryPlaceholder');
+        if (elements.historyItemsContainer) {
+            if (elements.historyItemsContainer.dataset.hash !== newHashVal) {
+                elements.historyItemsContainer.innerHTML = newHtml;
+                elements.historyItemsContainer.dataset.hash = newHashVal;
+            }
         }
     }
 
