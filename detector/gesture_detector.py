@@ -148,7 +148,7 @@ class GestureDetector:
             else:
                 # 2. If the thumb is not curled across the palm (pointing up/out):
                 # It is Hello or Stop, separated by finger spread:
-                if spread_dist > 0.70:
+                if spread_dist > 1.15:
                     return "Hello", 0.95
                 else:
                     return "Stop", 0.95
