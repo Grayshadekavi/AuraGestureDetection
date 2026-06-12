@@ -69,9 +69,8 @@ class GestureDetector:
         thumb_index_dist = self._get_distance_2d(thumb_tip, index_mcp) / palm_width
         thumb_pinky_dist = self._get_distance_2d(thumb_tip, pinky_mcp) / palm_width
         
-        # A thumb is extended if it is far from the index knuckle (>0.34)
-        # AND it is also far from the Pinky knuckle (>0.80) to align with Please/Stop.
-        thumb_extended = (thumb_index_dist > 0.34) and (thumb_pinky_dist > 0.80)
+        # A thumb is extended if it is far from the index knuckle (>0.30)
+        thumb_extended = thumb_index_dist > 0.30
 
         # 3. Fingertip coordinates for detailed gesture metrics
         t_tip = pts[4]
@@ -109,7 +108,7 @@ class GestureDetector:
 
         # B. OK Gesture: Index and Thumb pinching (touching), others extended.
         # We require a real pinch distance check to prevent falsely intercepting "Emergency"
-        if ok_pinch_dist < 0.40 and not fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky']:
+        if ok_pinch_dist < 0.55 and not fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky']:
             return "OK", 0.98
 
         # C. Money / Cost (Thumb and Middle finger pinched, Index, Ring, Pinky extended)
