@@ -115,3 +115,4 @@ class GestureStabilizer:
         self.smoothed_confidence = 0.0
         self.candidate_counter = 0
         self.candidate_gesture = "Unknown"
+        self.gesture_history.clear()

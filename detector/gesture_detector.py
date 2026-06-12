@@ -130,11 +130,7 @@ class GestureDetector:
 
         # F. Emergency / Danger (Index folded; Thumb, Middle, Ring, Pinky extended)
         if thumb_extended and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky'] and not fingers_extended['index']:
-            d_index_wrist = self._get_distance_2d(pts[8], wrist)
-            d_middle_wrist = self._get_distance_2d(pts[12], wrist)
-            # Index is folded if it is significantly shorter than the middle finger
-            if d_index_wrist < d_middle_wrist * 0.88:
-                return "Emergency", 0.98
+            return "Emergency", 0.98
 
         # G. Question (Ring folded; Thumb, Index, Middle, Pinky extended)
         if thumb_extended and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['pinky'] and not fingers_extended['ring']:
@@ -205,7 +201,7 @@ class GestureDetector:
             return "Where are you going?", 0.98
 
         # Q. Water (W-shape: Index, Middle, and Ring extended; Thumb and Pinky folded)
-        if fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and not (thumb_extended or fingers_extended['pinky']):
+        if fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and not thumb_extended:
             return "Water", 0.98
 
         # R. Toilet / Washroom (Pinky extended only; Thumb, Index, Middle, Ring folded)
@@ -226,7 +222,9 @@ class GestureDetector:
 
         # V. Yes (Fist)
         # All fingers folded, including thumb
-        if not (thumb_extended or fingers_extended['index'] or fingers_extended['middle'] or fingers_extended['ring'] or fingers_extended['pinky']):
+        # If at least 3 of the fingers are folded and thumb is folded, it is Yes (Fist)
+        folded_count = sum([1 for name in ['index', 'middle', 'ring', 'pinky'] if not fingers_extended[name]])
+        if folded_count >= 3 and not thumb_extended:
             return "Yes", 0.92
 
         # Default fallback
