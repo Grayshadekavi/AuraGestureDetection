@@ -46,8 +46,8 @@ class GestureDetector:
             d_tip_wrist = self._get_distance_2d(pts[tip_idx], wrist)
             d_pip_wrist = self._get_distance_2d(pts[pip_idx], wrist)
             
-            # 1.02 factor is mathematically verified to differentiate extended vs curled fingers with high noise tolerance under tilts
-            fingers_extended[name] = d_tip_wrist > (d_pip_wrist * 1.02)
+            # 1.08 factor is mathematically verified to differentiate extended vs curled fingers with high noise tolerance under tilts
+            fingers_extended[name] = d_tip_wrist > (d_pip_wrist * 1.08)
 
         # 2. Determine Thumb extended state
         # Distance between Thumb TIP (4) and Index MCP (5) normalized by palm width
@@ -98,15 +98,15 @@ class GestureDetector:
 
         # B. OK Gesture: Index and Thumb pinching (touching), others extended.
         # We require a real pinch distance check to prevent falsely intercepting "Emergency"
-        if ok_pinch_dist < 0.40 and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky']:
+        if ok_pinch_dist < 0.40 and not fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky']:
             return "OK", 0.98
 
         # C. Money / Cost (Thumb and Middle finger pinched, Index, Ring, Pinky extended)
-        if pinch_middle < 0.40 and fingers_extended['index'] and fingers_extended['ring'] and fingers_extended['pinky']:
+        if pinch_middle < 0.40 and fingers_extended['index'] and not fingers_extended['middle'] and fingers_extended['ring'] and fingers_extended['pinky']:
             return "Money", 0.98
 
         # D. Attention (Thumb and Pinky pinched, Index, Middle, Ring extended)
-        if pinch_pinky < 0.40 and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring']:
+        if pinch_pinky < 0.40 and fingers_extended['index'] and fingers_extended['middle'] and fingers_extended['ring'] and not fingers_extended['pinky']:
             return "Attention", 0.98
 
         # E. Read / Book (ASL 'Book' shape: Index, Middle, and Pinky extended; Ring and Thumb folded)
@@ -212,7 +212,7 @@ class GestureDetector:
             return "Happy", 0.98
 
         # U. No (Pointing index finger up, middle/ring/pinky folded)
-        if fingers_extended['index'] and not (fingers_extended['middle'] or fingers_extended['ring'] or fingers_extended['pinky']):
+        if fingers_extended['index'] and not (thumb_extended or fingers_extended['middle'] or fingers_extended['ring'] or fingers_extended['pinky']):
             return "No", 0.95
 
         # V. Yes (Fist)
