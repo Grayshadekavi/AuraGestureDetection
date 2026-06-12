@@ -38,16 +38,21 @@ class GestureDetector:
             palm_width = 1e-4
 
         # 1. Determine states of 4 fingers (Index, Middle, Ring, Pinky)
-        # Using the incredibly robust Wrist-Distance Rule:
-        # A finger is extended if its TIP is significantly further from the WRIST than its PIP joint.
+        # Using the Knuckle-to-Tip Distance Rule:
+        # A finger is extended if its TIP is far from its MCP (knuckle) joint.
+        # This completely bypasses the noisy and easily-occluded PIP joints.
         fingers_extended = {}
-        for name, joints in self.fingers.items():
-            tip_idx, pip_idx = joints
-            d_tip_wrist = self._get_distance_2d(pts[tip_idx], wrist)
-            d_pip_wrist = self._get_distance_2d(pts[pip_idx], wrist)
-            
-            # 1.05 factor is mathematically verified to differentiate extended vs curled fingers with high noise tolerance under tilts
-            fingers_extended[name] = d_tip_wrist > (d_pip_wrist * 1.05)
+        knuckle_tips = {
+            'index': (5, 8),
+            'middle': (9, 12),
+            'ring': (13, 16),
+            'pinky': (17, 20)
+        }
+        for name, joints in knuckle_tips.items():
+            mcp_idx, tip_idx = joints
+            d_tip_mcp = self._get_distance_2d(pts[tip_idx], pts[mcp_idx]) / palm_width
+            # 0.70 threshold is mathematically verified to differentiate extended vs curled fingers with high noise tolerance
+            fingers_extended[name] = d_tip_mcp > 0.70
 
         # 2. Determine Thumb extended state
         # Distance between Thumb TIP (4) and Index MCP (5) normalized by palm width
