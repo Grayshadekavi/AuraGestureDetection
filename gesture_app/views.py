@@ -1,15 +1,18 @@
 import os
 import cv2
 import time
+import json
 import threading
 import datetime
 import logging
-from flask import Flask, render_template, Response, jsonify, request
-#python files
 import mediapipe as mp
 import numpy as np
 
-# Import custom detection modules
+from django.http import StreamingHttpResponse, JsonResponse, HttpResponse
+from django.shortcuts import render
+from django.views.decorators.csrf import csrf_exempt
+
+# Import custom detection modules (from root directory)
 from detector.gesture_detector import GestureDetector
 from utils.gesture_stabilizer import GestureStabilizer
 from utils.voice_engine import BackgroundVoiceEngine
@@ -18,10 +21,9 @@ from utils.voice_engine import BackgroundVoiceEngine
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
-
 # Ensure assets directory exists for screenshots
-ASSETS_DIR = os.path.join(app.root_path, 'static', 'assets')
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ASSETS_DIR = os.path.join(BASE_DIR, 'static', 'assets')
 os.makedirs(ASSETS_DIR, exist_ok=True)
 
 class WebcamManager:
@@ -40,7 +42,7 @@ class WebcamManager:
         self.confidence = 0.0
         
         # Settings
-        self.voice_enabled = False  # Disabled by default on server (browser Web Speech takes priority)
+        self.voice_enabled = False  # Disabled by default on server
         
         # Core engines
         self.detector = GestureDetector()
@@ -179,7 +181,6 @@ class WebcamManager:
                 )
                 
                 # Extract hand labeled side (Left vs Right)
-                # MediaPipe handedness gives the actual hand (which is inverted because of mirrored image)
                 try:
                     handedness = results.multi_handedness[0].classification[0].label
                 except:
@@ -261,96 +262,115 @@ class WebcamManager:
                 "voice_enabled": self.voice_enabled
             }
 
-# Create WebcamManager Singleton instance
-camera_manager = WebcamManager()
+# Create WebcamManager Singleton instance lazily
+_camera_manager = None
+_camera_manager_lock = threading.Lock()
 
-@app.route('/')
-def index():
+def get_camera_manager():
+    global _camera_manager
+    if _camera_manager is None:
+        with _camera_manager_lock:
+            if _camera_manager is None:
+                _camera_manager = WebcamManager()
+    return _camera_manager
+
+def index(request):
     """Renders main premium HTML panel."""
-    return render_template('index.html')
+    return render(request, 'index.html')
 
 def gen_video(manager):
     """Generator function that yields live processed frames."""
     while True:
         frame_bytes = manager.get_frame()
         if frame_bytes is None:
-            # Yield placeholder frame or empty when camera is closed
             time.sleep(0.1)
             continue
             
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-        time.sleep(0.033)  # cap yield at roughly 30 FPS to avoid streaming bottlenecks
+        time.sleep(0.033)  # cap yield at roughly 30 FPS
 
-@app.route('/video_feed')
-def video_feed():
+def video_feed(request):
     """Streams live MJPEG camera feed."""
-    return Response(gen_video(camera_manager),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+    return StreamingHttpResponse(
+        gen_video(get_camera_manager()),
+        content_type='multipart/x-mixed-replace; boundary=frame'
+    )
 
-@app.route('/prediction_data')
-def prediction_data():
+def prediction_data(request):
     """Returns real-time prediction telemetry."""
-    return jsonify(camera_manager.get_data())
+    return JsonResponse(get_camera_manager().get_data())
 
-@app.route('/toggle_camera', methods=['POST'])
-def toggle_camera():
+@csrf_exempt
+def toggle_camera(request):
     """Starts or stops the webcam feed."""
-    data = request.json or {}
-    action = data.get('action')
-    
-    if action == 'start':
-        success = camera_manager.start()
-        return jsonify({"status": "started" if success else "failed"})
-    elif action == 'stop':
-        camera_manager.stop()
-        return jsonify({"status": "stopped"})
-    else:
-        # Toggle current state
-        if camera_manager.running:
-            camera_manager.stop()
-            return jsonify({"status": "stopped"})
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            data = {}
+        action = data.get('action')
+        
+        manager = get_camera_manager()
+        if action == 'start':
+            success = manager.start()
+            return JsonResponse({"status": "started" if success else "failed"})
+        elif action == 'stop':
+            manager.stop()
+            return JsonResponse({"status": "stopped"})
         else:
-            success = camera_manager.start()
-            return jsonify({"status": "started" if success else "failed"})
+            if manager.running:
+                manager.stop()
+                return JsonResponse({"status": "stopped"})
+            else:
+                success = manager.start()
+                return JsonResponse({"status": "started" if success else "failed"})
+    return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
 
-@app.route('/toggle_voice', methods=['POST'])
-def toggle_voice():
+@csrf_exempt
+def toggle_voice(request):
     """Toggles backend pyttsx3 speech manager."""
-    camera_manager.voice_enabled = not camera_manager.voice_enabled
-    logger.info(f"Server-side TTS Speech toggled to: {camera_manager.voice_enabled}")
-    return jsonify({"voice_enabled": camera_manager.voice_enabled})
+    if request.method == 'POST':
+        manager = get_camera_manager()
+        manager.voice_enabled = not manager.voice_enabled
+        logger.info(f"Server-side TTS Speech toggled to: {manager.voice_enabled}")
+        return JsonResponse({"voice_enabled": manager.voice_enabled})
+    return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
 
-@app.route('/capture_screenshot', methods=['POST'])
-def capture_screenshot():
+@csrf_exempt
+def capture_screenshot(request):
     """Captures high resolution frame and returns url."""
-    img_url = camera_manager.get_screenshot()
-    if img_url:
-        return jsonify({"success": True, "img_url": img_url})
-    return jsonify({"success": False, "error": "Camera not active or frame empty."})
+    if request.method == 'POST':
+        manager = get_camera_manager()
+        img_url = manager.get_screenshot()
+        if img_url:
+            return JsonResponse({"success": True, "img_url": img_url})
+        return JsonResponse({"success": False, "error": "Camera not active or frame empty."})
+    return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
 
-@app.route('/speak', methods=['POST'])
-def speak():
+@csrf_exempt
+def speak(request):
     """Custom endpoint to speak raw message using backend engine."""
-    data = request.json or {}
-    text = data.get('text', '')
-    if text:
-        camera_manager.voice_engine.speak(text)
-        return jsonify({"success": True})
-    return jsonify({"success": False, "error": "No text provided."})
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            data = {}
+        text = data.get('text', '')
+        if text:
+            manager = get_camera_manager()
+            manager.voice_engine.speak(text)
+            return JsonResponse({"success": True})
+        return JsonResponse({"success": False, "error": "No text provided."})
+    return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
 
-# Cleanup hooks when shutting down flask server
+# Cleanup hooks when shutting down server
 def cleanup():
-    logger.info("Cleaning up backend thread services...")
-    camera_manager.stop()
-    camera_manager.voice_engine.shutdown()
+    global _camera_manager
+    if _camera_manager is not None:
+        logger.info("Cleaning up backend thread services...")
+        _camera_manager.stop()
+        _camera_manager.voice_engine.shutdown()
 
 import atexit
 atexit.register(cleanup)
-
-if __name__ == '__main__':
-    try:
-        # Host on 0.0.0.0 for potential local network access (e.g. testing on mobile browser)
-        app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
-    except KeyboardInterrupt:
-        cleanup()

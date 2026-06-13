@@ -11,8 +11,8 @@ call "venv\Scripts\activate.bat"
 echo [*] Launching your default web browser...
 start http://127.0.0.1:5000
 
-echo [*] Starting Flask Gesture AI Server...
+echo [*] Starting Django Gesture AI Server...
 echo [!] (To shut down the app anytime, close this window or press Ctrl+C)
 echo.
-python app.py
+python manage.py runserver 0.0.0.0:5000
 pause
