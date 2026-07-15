@@ -3,3 +3,4 @@ adding line two
 adding line three
 adding line four
 adding line five
+adding line six
